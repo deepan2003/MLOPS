@@ -1,6 +1,0 @@
-[core]
-    remote = gdrive-storage
-['remote "gcs-storage"']
-    url = gs://your-bucket-name/heart-attack-mlops
-['remote "gdrive-storage"']
-    url = gdrive://1yDTlayODgUIaJYNIr6JsC8FasrxOHwKr
