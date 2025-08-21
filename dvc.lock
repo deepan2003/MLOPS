@@ -1,0 +1,54 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python src/data/preprocess.py
+    deps:
+    - path: data/raw/Heart Attack.csv
+      hash: md5
+      md5: 46545d65a587b83d1da49b95e4d9c5e0
+      size: 52322
+    - path: params.yaml
+      hash: md5
+      md5: 30029a16cb00fd49f09b087aa3ecb502
+      size: 780
+    - path: src/data/preprocess.py
+      hash: md5
+      md5: 3cb5fd11bccc2e8bf7c7c45beb164971
+      size: 4848
+    outs:
+    - path: data/preprocessed/heart_attack_processed_test.csv
+      hash: md5
+      md5: 7a6a8aa53a35018e1e04161aa3dfc315
+      size: 10267
+    - path: data/preprocessed/heart_attack_processed_train.csv
+      hash: md5
+      md5: d7c71cc530eb5be06cd3f7b336ea0060
+      size: 40770
+  train:
+    cmd: python src/model/train_model.py
+    deps:
+    - path: data/preprocessed/heart_attack_processed_test.csv
+      hash: md5
+      md5: 7a6a8aa53a35018e1e04161aa3dfc315
+      size: 10267
+    - path: data/preprocessed/heart_attack_processed_train.csv
+      hash: md5
+      md5: d7c71cc530eb5be06cd3f7b336ea0060
+      size: 40770
+    - path: params.yaml
+      hash: md5
+      md5: 30029a16cb00fd49f09b087aa3ecb502
+      size: 780
+    - path: src/model/train_model.py
+      hash: md5
+      md5: 5de2f486d1b97f8490a6e95ac9ef97a8
+      size: 6601
+    outs:
+    - path: models/heart_attack_model.pkl
+      hash: md5
+      md5: 0a8ad962c60fb1635d0055a389107db4
+      size: 632857
+    - path: models/metrics.json
+      hash: md5
+      md5: f651603d4611baba1c07a8a98cd86867
+      size: 1031
