@@ -1,4 +1,4 @@
 [core]
-    remote = gdrive-storage
-['remote "gdrive-storage"']
-    url = gdrive://1yDTlayODgUIaJYNIr6JsC8FasrxOHwKr
+    remote = studio
+['remote "studio"']
+    url = https://studio.dvc.org/api/dvc/deepan2003/mlops

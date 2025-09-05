@@ -1,0 +1,22 @@
+stages:
+  preprocess:
+    cmd: python src/data/preprocess.py
+    deps:
+    - data/raw/Heart Attack.csv
+    - src/data/preprocess.py
+    - params.yaml
+    outs:
+    - data/preprocessed/heart_attack_processed_train.csv
+    - data/preprocessed/heart_attack_processed_test.csv
+
+  train:
+    cmd: python src/model/train_model.py
+    deps:
+    - data/preprocessed/heart_attack_processed_train.csv
+    - data/preprocessed/heart_attack_processed_test.csv
+    - src/model/train_model.py
+    - params.yaml
+    outs:
+    - models/heart_attack_model.pkl
+    metrics:
+    - models/metrics.json
