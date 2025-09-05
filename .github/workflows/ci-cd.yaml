@@ -1,23 +1,19 @@
-# This is the complete, corrected, and adapted version of your CI/CD workflow.
-# It is now configured for DVC Studio and deployment to Render.
+# This is the final, corrected CI/CD pipeline.
+# It uses the direct studio.datachain.ai URL to avoid network redirect issues.
 
 name: 🏥 Heart Attack MLOps Pipeline
 
 on:
   push:
-    branches: [ main ] # Runs on pushes to the main branch
+    branches: [ main ]
   pull_request:
-    branches: [ main ] # Runs on pull requests to the main branch for checking
-  workflow_dispatch:   # Allows manual runs from the GitHub Actions tab
+    branches: [ main ]
+  workflow_dispatch:
 
 env:
-  PYTHON_VERSION: '3.9' # CORRECTED: Matched to your tox.ini file
+  PYTHON_VERSION: '3.9'
 
 jobs:
-  # ====================================================================
-  # JOB 1: DVC ML PIPELINE
-  # Downloads data, reproduces the model, and pushes the new version.
-  # ====================================================================
   dvc-pipeline:
     name: 🔄 DVC ML Pipeline (Preprocess & Train)
     runs-on: ubuntu-latest
@@ -42,11 +38,12 @@ jobs:
         pip install -r requirements.txt
 
     - name: 🔐 Configure DVC Studio Remote
-      # CORRECTED: This step now MODIFIES the existing remote instead of adding a new one.
       env:
         DVC_STUDIO_TOKEN: ${{ secrets.DVC_STUDIO_TOKEN }}
         DVC_STUDIO_USERNAME: ${{ secrets.DVC_STUDIO_USERNAME }}
       run: |
+        # MODIFIED: Using the direct datachain.ai URL
+        dvc remote add studio https://studio.datachain.ai/api/dvc/$DVC_STUDIO_USERNAME/heart-attack-project --force
         dvc remote modify studio --local auth basic
         dvc remote modify studio --local user $DVC_STUDIO_USERNAME
         dvc remote modify studio --local password $DVC_STUDIO_TOKEN
@@ -68,10 +65,8 @@ jobs:
       run: |
         if git diff --quiet HEAD^ HEAD -- models/ || [ ! -d models ]; then
           echo "model-changed=false" >> $GITHUB_OUTPUT
-          echo "ℹ️ No model changes detected."
         else
           echo "model-changed=true" >> $GITHUB_OUTPUT
-          echo "✅ Model changes detected. Deployment will be triggered."
         fi
 
     - name: 📤 Upload Data to Remote Storage
@@ -88,46 +83,26 @@ jobs:
           metrics.json
         retention-days: 7
 
-  # ====================================================================
-  # JOB 2: QUALITY ASSURANCE
-  # Runs tests, linting, and security checks using tox.
-  # ====================================================================
   quality-assurance:
     name: 🧪 Quality Assurance (Tox)
     runs-on: ubuntu-latest
-    needs: dvc-pipeline # Depends on the DVC pipeline job
-
+    needs: dvc-pipeline
     strategy:
       fail-fast: false
       matrix:
         tox-env: [py39, lint, security]
-
     steps:
-    - name: 📥 Checkout Code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with: { python-version: ${{ env.PYTHON_VERSION }} }
+    - run: pip install tox
+    - run: tox -e ${{ matrix.tox-env }}
 
-    - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-
-    - name: 🔧 Install Tox
-      run: pip install tox
-
-    - name: 🧪 Run Tox Environment [${{ matrix.tox-env }}]
-      run: tox -e ${{ matrix.tox-env }}
-
-  # ====================================================================
-  # JOB 3: DEPLOY TO RENDER
-  # Deploys the application to Render if all previous jobs succeed.
-  # ====================================================================
   deploy-to-render:
     name: "🚀 Deploy to Production (Render)"
     runs-on: ubuntu-latest
-    needs: [dvc-pipeline, quality-assurance] # Depends on both previous jobs
-    # Only deploy if on the main branch AND the model has actually changed
+    needs: [dvc-pipeline, quality-assurance]
     if: github.ref == 'refs/heads/main' && needs.dvc-pipeline.outputs.model-changed == 'true'
-
     steps:
     - name: "🚀 Trigger Render Deploy"
       run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
