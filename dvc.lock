@@ -46,9 +46,9 @@ stages:
     outs:
     - path: models/heart_attack_model.pkl
       hash: md5
-      md5: 7952c382e03b2569aa4b083d4cceb019
+      md5: 0bfd77952a3029a80222109d848588b6
       size: 632857
     - path: models/metrics.json
       hash: md5
-      md5: b976327727993eeb49ee296fb00e6adb
+      md5: aa32b3c693b7da0c8cbdd5829d04e9e9
       size: 1031
