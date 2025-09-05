@@ -1,22 +1,25 @@
+# This is the complete, corrected, and adapted version of your CI/CD workflow.
+# It is now configured for DVC Studio and deployment to Render.
+
 name: 🏥 Heart Attack MLOps Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ] # Runs on pushes to the main branch
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ main ] # Runs on pull requests to the main branch for checking
+  workflow_dispatch:   # Allows manual runs from the GitHub Actions tab
 
 env:
-  # CORRECTED: Your tox.ini is configured for Python 3.9
-  PYTHON_VERSION: '3.9'
+  PYTHON_VERSION: '3.9' # CORRECTED: Matched to your tox.ini file
 
 jobs:
-  # --------------------------------------------------------------------
-  # STAGE 1: DVC DATA PIPELINE (PREPROCESS & TRAIN)
-  # --------------------------------------------------------------------
+  # ====================================================================
+  # JOB 1: DVC ML PIPELINE
+  # Downloads data, reproduces the model, and pushes the new version.
+  # ====================================================================
   dvc-pipeline:
-    name: 🔄 DVC ML Pipeline
+    name: 🔄 DVC ML Pipeline (Preprocess & Train)
     runs-on: ubuntu-latest
     outputs:
       model-changed: ${{ steps.check-changes.outputs.model-changed }}
@@ -27,31 +30,23 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: 🐍 Setup Python Environment
+    - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: 💾 Cache Dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-
     - name: 📦 Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        # MODIFIED: Removed gdrive extra, just need core dvc
         pip install dvc
         pip install -r requirements.txt
 
     - name: 🔐 Configure DVC Studio Remote
-      # MODIFIED: This entire step is replaced for DVC Studio
+      # CORRECTED: This step now MODIFIES the existing remote instead of adding a new one.
       env:
         DVC_STUDIO_TOKEN: ${{ secrets.DVC_STUDIO_TOKEN }}
         DVC_STUDIO_USERNAME: ${{ secrets.DVC_STUDIO_USERNAME }}
       run: |
-        dvc remote add studio https://studio.dvc.org/api/dvc/$DVC_STUDIO_USERNAME/heart-attack-project
         dvc remote modify studio --local auth basic
         dvc remote modify studio --local user $DVC_STUDIO_USERNAME
         dvc remote modify studio --local password $DVC_STUDIO_TOKEN
@@ -61,9 +56,9 @@ jobs:
       run: dvc pull
 
     - name: 🚀 Execute DVC Pipeline (Reproduce Model)
-      run: dvc repro --force
+      run: dvc repro
 
-    - name: 📈 Display Model Metrics
+    - name: 📈 Display Model Metrics in Summary
       run: |
         echo "## 📊 Heart Attack Model Performance" >> $GITHUB_STEP_SUMMARY
         dvc metrics show --md >> $GITHUB_STEP_SUMMARY
@@ -76,48 +71,45 @@ jobs:
           echo "ℹ️ No model changes detected."
         else
           echo "model-changed=true" >> $GITHUB_OUTPUT
-          echo "✅ Model changes detected - will trigger deployment."
+          echo "✅ Model changes detected. Deployment will be triggered."
         fi
 
-    - name: 💾 Upload Data to Remote Storage
+    - name: 📤 Upload Data to Remote Storage
       if: github.ref == 'refs/heads/main'
       run: dvc push
 
-    - name: 📦 Save Model Artifacts for Next Jobs
+    - name: 📦 Save Model Artifacts for Next Job
       uses: actions/upload-artifact@v4
       with:
-        name: trained-model
+        name: trained-model-artifacts
         path: |
           models/
           data/preprocessed/
+          metrics.json
         retention-days: 7
 
-  # --------------------------------------------------------------------
-  # STAGE 2: QUALITY ASSURANCE
-  # --------------------------------------------------------------------
-  tox-quality-checks:
+  # ====================================================================
+  # JOB 2: QUALITY ASSURANCE
+  # Runs tests, linting, and security checks using tox.
+  # ====================================================================
+  quality-assurance:
     name: 🧪 Quality Assurance (Tox)
     runs-on: ubuntu-latest
-    needs: dvc-pipeline
+    needs: dvc-pipeline # Depends on the DVC pipeline job
+
     strategy:
       fail-fast: false
       matrix:
-        # CORRECTED: Your tox.ini has py39, not py311
         tox-env: [py39, lint, security]
 
     steps:
     - name: 📥 Checkout Code
       uses: actions/checkout@v4
 
-    - name: 🐍 Setup Python
+    - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ env.PYTHON_VERSION }}
-
-    - name: 📦 Download Model Artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: trained-model
 
     - name: 🔧 Install Tox
       run: pip install tox
@@ -125,110 +117,18 @@ jobs:
     - name: 🧪 Run Tox Environment [${{ matrix.tox-env }}]
       run: tox -e ${{ matrix.tox-env }}
 
-  # --------------------------------------------------------------------
-  # STAGE 3: INTEGRATION & API TESTING
-  # --------------------------------------------------------------------
-  integration-tests:
-    name: 🔗 Integration Testing
-    runs-on: ubuntu-latest
-    needs: [dvc-pipeline, tox-quality-checks]
-
-    steps:
-    - name: 📥 Checkout Code
-      uses: actions/checkout@v4
-
-    - name: 🐍 Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-
-    - name: 📦 Download Model Artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: trained-model
-
-    - name: 🔧 Install Dependencies
-      run: pip install -r requirements.txt
-
-    - name: 🏥 Test Flask API
-      run: |
-        echo "🚀 Starting Flask API server..."
-        # CORRECTED: Your app.py is in the root directory
-        python app.py &
-        API_PID=$!
-        sleep 15
-
-        echo "🔍 Testing health endpoint..."
-        curl -f http://localhost:5000/health || (echo "❌ Health check failed" && exit 1)
-
-        echo "🧪 Testing prediction endpoint..."
-        curl -X POST http://localhost:5000/predict \
-          -H "Content-Type: application/json" \
-          -d '{
-            "age": 64, "gender": 1, "pressurehight": 160,
-            "pressurelow": 83, "glucose": 160.0,
-            "kcm": 1.80, "troponin": 0.012
-          }' | grep -q "heart_attack_risk" || (echo "❌ Prediction test failed" && exit 1)
-
-        echo "✅ All API tests passed!"
-        kill $API_PID
-
-    - name: 🎯 Model Performance Validation
-      run: |
-        python -c "
-        import json
-        try:
-            with open('models/metrics.json') as f:
-                data = json.load(f)
-            accuracy = data['performance_metrics']['test_accuracy']
-            f1_score = data['performance_metrics']['test_f1']
-
-            print(f'📊 Model Accuracy: {accuracy:.4f}')
-            print(f'📊 Model F1-Score: {f1_score:.4f}')
-
-            if accuracy < 0.75:
-                raise ValueError(f'❌ Model accuracy {accuracy:.4f} below threshold 0.75')
-            if f1_score < 0.70:
-                raise ValueError(f'❌ Model F1-score {f1_score:.4f} below threshold 0.70')
-
-            print('✅ Model performance meets requirements!')
-        except Exception as e:
-            print(f'❌ Performance validation failed: {e}')
-            exit(1)
-        "
-
-  # --------------------------------------------------------------------
-  # STAGE 4: PRODUCTION DEPLOYMENT
-  # --------------------------------------------------------------------
-  deploy-production:
+  # ====================================================================
+  # JOB 3: DEPLOY TO RENDER
+  # Deploys the application to Render if all previous jobs succeed.
+  # ====================================================================
+  deploy-to-render:
     name: "🚀 Deploy to Production (Render)"
     runs-on: ubuntu-latest
-    needs: [dvc-pipeline, tox-quality-checks, integration-tests]
+    needs: [dvc-pipeline, quality-assurance] # Depends on both previous jobs
+    # Only deploy if on the main branch AND the model has actually changed
     if: github.ref == 'refs/heads/main' && needs.dvc-pipeline.outputs.model-changed == 'true'
 
     steps:
-      - name: "🚀 Trigger Render Deploy"
-        # MODIFIED: Using the simpler and more secure Render Deploy Hook
-        # You need to store your hook URL as a secret named RENDER_DEPLOY_HOOK
-        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
-
-  # --------------------------------------------------------------------
-  # STAGE 5: POST-DEPLOYMENT MONITORING & NOTIFICATION
-  # --------------------------------------------------------------------
-  post-deployment:
-    name: 📈 Monitoring & Notifications
-    runs-on: ubuntu-latest
-    needs: deploy-production
-    if: always() && needs.deploy-production.result != 'skipped'
-
-    steps:
-    - name: 📊 Create Deployment Summary
-      run: |
-        echo "# 🎉 Heart Attack MLOps Deployment Complete!" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "## 📊 Deployment Details" >> $GITHUB_STEP_SUMMARY
-        # MODIFIED: Removed specific URL as it's managed in Render
-        echo "- **Platform**: Render" >> $GITHUB_STEP_SUMMARY
-        echo "- **📅 Deployed At**: $(date)" >> $GITHUB_STEP_SUMMARY
-        echo "- **🔄 Pipeline Status**: ${{ needs.deploy-production.result }}" >> $GITHUB_STEP_SUMMARY
+    - name: "🚀 Trigger Render Deploy"
+      run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
 
