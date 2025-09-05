@@ -1,5 +1,5 @@
-# This is the final, correct CI/CD pipeline.
-# It uses an S3-compatible remote and correctly installs the dvc[s3] dependency.
+# This is the final, corrected CI/CD pipeline.
+# It uses an S3-compatible remote and has the YAML syntax errors fixed.
 
 name: 🏥 Heart Attack MLOps Pipeline
 
@@ -34,7 +34,6 @@ jobs:
     - name: 📦 Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        # This line correctly installs the S3 dependency for DVC
         pip install "dvc[s3]"
         pip install -r requirements.txt
 
@@ -92,12 +91,19 @@ jobs:
       matrix:
         tox-env: [py39, lint, security]
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with: { python-version: ${{ env.PYTHON_VERSION }} }
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
     - name: 📦 Download Model Artifacts
       uses: actions/download-artifact@v4
-      with: { name: trained-model-artifacts }
+      with:
+        name: trained-model-artifacts
+
     - name: 📦 Install Dependencies
       run: |
         pip install -r requirements.txt
