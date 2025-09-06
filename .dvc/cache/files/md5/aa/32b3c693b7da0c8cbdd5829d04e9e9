@@ -1,0 +1,42 @@
+{
+  "model_type": "RandomForestClassifier",
+  "training_date": "2025-09-06T00:18:23.807976",
+  "model_parameters": {
+    "n_estimators": 100,
+    "random_state": 42
+  },
+  "performance_metrics": {
+    "train_accuracy": 1.0,
+    "test_accuracy": 0.9810606060606061,
+    "train_precision": 1.0,
+    "test_precision": 0.9875776397515528,
+    "train_recall": 1.0,
+    "test_recall": 0.9814814814814815,
+    "train_f1": 1.0,
+    "test_f1": 0.9845201238390092,
+    "train_roc_auc": 1.0,
+    "test_roc_auc": 0.9944928588719438,
+    "cv_f1_mean": 0.985075759360706,
+    "cv_f1_std": 0.0070151858930440755
+  },
+  "feature_importance": {
+    "features": [
+      "age",
+      "gender",
+      "pressurehight",
+      "pressurelow",
+      "glucose",
+      "kcm",
+      "troponin"
+    ],
+    "importance": [
+      0.04817646276187929,
+      0.007390089737300103,
+      0.02377023530224673,
+      0.01915586205263905,
+      0.01994922480758201,
+      0.265945319456791,
+      0.6156128058815619
+    ]
+  }
+}

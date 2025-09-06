@@ -40,8 +40,7 @@ data/preprocessed/*.csv
 !data/preprocessed/.gitkeep
 
 # Models (keep structure but ignore trained models)
-models/*.pkl
-models/*.json
+models/
 !models/.gitkeep
 
 # Logs
@@ -66,8 +65,4 @@ htmlcov/
 .env.local
 .env.production
 
-# Heroku
-.heroku/
 
-# DVC
-.dvc/

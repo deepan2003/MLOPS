@@ -1,8 +1,10 @@
 [core]
-    no_scm = True
-    remote = s3remote
+remote = s3remote
+
 ['remote "s3remote"']
-    url = s3://dvc-remote-deepan2003
-    endpointurl = https://play.min.io
-    access_key_id = minioadmin
-    secret_access_key = minioadmin
+endpointurl = https://play.min.io
+access_key_id = minioadmin
+secret_access_key = minioadmin
+
+[cache]
+tmp_dir = /tmp/dvc-tmp
