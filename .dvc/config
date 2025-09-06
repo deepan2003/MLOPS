@@ -1,10 +1,10 @@
 [core]
-remote = s3remote
+    remote = s3remote
 
 ['remote "s3remote"']
-endpointurl = https://play.min.io
-access_key_id = minioadmin
-secret_access_key = minioadmin
+    endpointurl = https://play.min.io
+    access_key_id = minioadmin
+    secret_access_key = minioadmin
 
 [cache]
-tmp_dir = /tmp/dvc-tmp
+    tmp_dir = /tmp/dvc-tmp
