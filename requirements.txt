@@ -1,24 +1,28 @@
-# Core ML libraries
+Build tools (add these to the top)
+setuptools==69.5.1
+wheel==0.43.0
+
+Core ML libraries
 pandas==2.0.3
 numpy==1.24.4
 scikit-learn==1.3.0
 joblib==1.3.2
 
-# Web framework
+Web framework
 Flask==2.3.3
 gunicorn==21.2.0
 
-# Configuration
+Configuration
 PyYAML==6.0.1
 
-# Testing
+Testing
 pytest==7.4.0
 pytest-cov==4.1.0
 tox==4.6.4
 
-# Code quality
+Code quality
 flake8==6.0.0
 black==23.7.0
 
-# Development
+Development
 python-dotenv==1.0.0
