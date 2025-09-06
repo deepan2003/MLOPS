@@ -1,5 +1,5 @@
 # This is the final, corrected CI/CD pipeline.
-# It uses an S3-compatible remote and has the YAML syntax errors fixed.
+# It uses a single requirements.txt file to ensure all versions are correct.
 
 name: 🏥 Heart Attack MLOps Pipeline
 
@@ -31,10 +31,11 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: 📦 Install Dependencies
+    - name: 📦 Install All Dependencies
+      # CORRECTED: Removed the conflicting "pip install dvc[s3]" line.
+      # Now, it will only use your requirements.txt file.
       run: |
         python -m pip install --upgrade pip
-        pip install "dvc[s3]"
         pip install -r requirements.txt
 
     - name: 🔐 Configure DVC S3 Remote
@@ -91,23 +92,16 @@ jobs:
       matrix:
         tox-env: [py39, lint, security]
     steps:
-    - name: 📥 Checkout Code
-      uses: actions/checkout@v4
-      
-    - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
-      uses: actions/setup-python@v5
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: ${{ env.PYTHON_VERSION }}
-
     - name: 📦 Download Model Artifacts
       uses: actions/download-artifact@v4
       with:
         name: trained-model-artifacts
-
     - name: 📦 Install Dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install tox
+      run: pip install -r requirements.txt
     - name: 🧪 Run Tox Environment
       run: tox -e ${{ matrix.tox-env }}
 
@@ -119,4 +113,3 @@ jobs:
     steps:
     - name: "🚀 Trigger Render Deploy"
       run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
-
