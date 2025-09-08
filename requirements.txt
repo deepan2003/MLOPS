@@ -2,9 +2,8 @@
 setuptools==69.5.1
 wheel==0.43.0
 
-# DVC and S3 integration (specific modern versions)
-dvc==3.50.1
-dvc-s3==3.1.0
+# DVC with S3 support (Unified into one line)
+dvc[s3]==3.50.1
 
 # Core ML libraries
 pandas==2.0.3
