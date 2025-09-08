@@ -1,6 +1,5 @@
-# This is the final, corrected CI/CD pipeline.
-# It is designed to deploy your application to an AWS EC2 instance via SSH.
-# This approach avoids all the previous file system and versioning errors.
+# This is the final, verified CI/CD pipeline.
+# The YAML syntax for the ssh-action has been corrected.
 
 name: 🏥 MLOps Pipeline for AWS EC2
 
@@ -11,55 +10,36 @@ on:
 
 env:
   PYTHON_VERSION: '3.9'
-  # This is the directory on your EC2 server where the project will be copied.
   PROJECT_DIR: /home/ubuntu/MLOPS
 
 jobs:
-  # This first job runs tests and checks DVC, but does not deploy.
   dvc-and-quality-check:
     name: 🔄 DVC and Quality Checks
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: 📦 Install Dependencies
-        run: pip install -r requirements.txt
-
-      - name: 🔐 Configure DVC S3 Remote
-        run: dvc remote modify s3remote endpointurl https://play.min.io && dvc remote default s3remote
-
-      - name: 📊 Pull Data for Testing
-        env:
+      - run: pip install -r requirements.txt
+      - run: dvc remote modify s3remote endpointurl https://play.min.io && dvc remote default s3remote
+      - env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: dvc pull
+      - run: dvc repro
+      - run: tox -e py39,lint,security
 
-      - name: 🚀 Reproduce Pipeline to Check Logic
-        run: dvc repro
-
-      - name: 🧪 Run Quality Checks with Tox
-        run: tox -e py39,lint,security
-
-  # This second job handles the actual deployment to your server.
   deploy-to-ec2:
     name: "🚀 Deploy to AWS EC2"
     runs-on: ubuntu-latest
-    # This job runs only after the first job succeeds.
     needs: dvc-and-quality-check
-    # This job runs only when you push to the 'main' branch.
     if: github.ref == 'refs/heads/main'
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
       - name: 📂 Sync Project Files to EC2 Server
-        # This action securely copies your project files to the server.
         uses: appleboy/scp-action@v1.0.1
         with:
           host: ${{ secrets.AWS_EC2_HOST }}
@@ -70,21 +50,21 @@ jobs:
           target: ${{ env.PROJECT_DIR }}
 
       - name: 🚀 Execute Deployment Script on EC2
-        # This action securely connects to your server and runs the deploy.sh script.
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.AWS_EC2_HOST }}
           username: ${{ secrets.AWS_EC2_USERNAME }}
           key: ${{ secrets.AWS_EC2_KEY }}
           port: 22
-          # Pass your S3 credentials to the server so 'dvc pull' can work there.
-          env:
-            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # CORRECTED: The env variables are now exported inside the script,
+          # which fixes the YAML syntax error.
           script: |
+            export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            
             cd ${{ env.PROJECT_DIR }}
             
-            # This part runs the first time to set up the server.
+            # Run initial setup only if the venv doesn't exist
             if [ ! -d "venv" ]; then
               echo "Setting up virtual environment for the first time..."
               python3 -m venv venv
@@ -92,6 +72,7 @@ jobs:
               pip install -r requirements.txt
             fi
             
-            # Make the deployment script executable and then run it.
+            # Make the deployment script executable and then run it
             chmod +x deploy.sh
             ./deploy.sh
+
