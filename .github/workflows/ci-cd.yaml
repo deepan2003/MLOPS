@@ -1,5 +1,5 @@
-# This is the final, corrected CI/CD pipeline.
-# It uses a single requirements.txt file to ensure all versions are correct.
+# This is the final, verified CI/CD pipeline.
+# It uses a single requirements.txt file and includes a verification step.
 
 name: 🏥 Heart Attack MLOps Pipeline
 
@@ -31,12 +31,14 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: 📦 Install All Dependencies from requirements.txt
-      # This step now correctly uses your requirements.txt as the single
-      # source of truth, ensuring the modern DVC version is installed.
+    - name: 📦 Install Dependencies from requirements.txt
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+
+    - name: 🔍 Verify DVC Version
+      # This new step proves that the correct DVC version is installed.
+      run: dvc --version
 
     - name: 🔐 Configure DVC S3 Remote
       run: |
@@ -113,3 +115,6 @@ jobs:
     steps:
     - name: "🚀 Trigger Render Deploy"
       run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+
+    
+
