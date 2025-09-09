@@ -9,7 +9,7 @@ stages:
       size: 52322
     - path: params.yaml
       hash: md5
-      md5: 30029a16cb00fd49f09b087aa3ecb502
+      md5: bb3c0c6a8e6b5434d41d06dcbf96319c
       size: 780
     - path: src/data/preprocess.py
       hash: md5
@@ -37,7 +37,7 @@ stages:
       size: 40770
     - path: params.yaml
       hash: md5
-      md5: 30029a16cb00fd49f09b087aa3ecb502
+      md5: bb3c0c6a8e6b5434d41d06dcbf96319c
       size: 780
     - path: src/model/train_model.py
       hash: md5
@@ -46,9 +46,9 @@ stages:
     outs:
     - path: models/heart_attack_model.pkl
       hash: md5
-      md5: 0bfd77952a3029a80222109d848588b6
-      size: 632857
+      md5: 8b5438a3abfc0a13745e6643c0033d89
+      size: 648825
     - path: models/metrics.json
       hash: md5
-      md5: aa32b3c693b7da0c8cbdd5829d04e9e9
-      size: 1031
+      md5: 78c08408bd479700fabe79b0abfcdfd1
+      size: 1036

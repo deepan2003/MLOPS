@@ -1,5 +1,5 @@
-# This is the final, verified CI/CD pipeline for AWS EC2.
-# It unifies the testing and deployment logic to solve the skipped job issue.
+# This is the final, corrected CI/CD pipeline for AWS EC2.
+# It uses 'dvc.lock' to reliably detect model changes and trigger deployments.
 
 name: 🏥 MLOps Pipeline for AWS EC2
 
@@ -15,7 +15,7 @@ env:
 jobs:
   # JOB 1: Combined DVC, Quality, and Model Change Check
   build-and-test:
-    name: 🔄 Build, Test, and Check for Model Changes
+    name: 🔄 Build, Test, and Check for Pipeline Changes
     runs-on: ubuntu-latest
     outputs:
       model-changed: ${{ steps.check-changes.outputs.model-changed }}
@@ -23,7 +23,7 @@ jobs:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Needed for git diff
+          fetch-depth: 0 # Needed for git diff to compare commits
 
       - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
@@ -45,15 +45,17 @@ jobs:
       - name: 🚀 Reproduce Model Pipeline
         run: dvc repro
 
-      - name: 🔍 Check for Model Changes
+      # ✅ CORRECTED STEP: This now checks dvc.lock for changes.
+      - name: 🔍 Check for Pipeline Changes in dvc.lock
         id: check-changes
         run: |
-          if git diff --quiet HEAD^ HEAD -- models/ || [ ! -d models ]; then
+          # Compare the dvc.lock file between the current commit and the previous one.
+          if git diff --quiet HEAD^ HEAD -- dvc.lock; then
             echo "model-changed=false" >> $GITHUB_OUTPUT
-            echo "ℹ️ No model changes detected."
+            echo "ℹ️ No pipeline changes detected in dvc.lock. Deployment will be skipped."
           else
             echo "model-changed=true" >> $GITHUB_OUTPUT
-            echo "✅ Model has changed. Deployment will be triggered."
+            echo "✅ Pipeline has changed (dvc.lock updated). Deployment will be triggered."
           fi
 
       - name: 🧪 Run Quality Checks with Tox
@@ -64,10 +66,12 @@ jobs:
     name: "🚀 Deploy to AWS EC2"
     runs-on: ubuntu-latest
     needs: build-and-test # This job runs only after the first job succeeds
-    # This rule says "Run if the model changed OR if this was a manual run"
+
+    # This rule says "Run if pushed to main AND (the model changed OR this was a manual run)"
     if: |
       github.ref == 'refs/heads/main' && 
       (needs.build-and-test.outputs.model-changed == 'true' || github.event_name == 'workflow_dispatch')
+    
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
@@ -90,12 +94,13 @@ jobs:
           key: ${{ secrets.AWS_EC2_KEY }}
           port: 22
           script: |
+            # Set AWS credentials as environment variables for the deployment script
             export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
             export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
             
+            # Navigate to the project directory on the EC2 instance
             cd ${{ env.PROJECT_DIR }}
             
             # Make the deployment script executable and run it
             chmod +x deploy.sh
             ./deploy.sh
-
