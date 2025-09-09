@@ -1,26 +1,27 @@
 #!/bin/bash
-set -e # Exit immediately if a command exits with a non-zero status.
 
-# Navigate to the app directory
-cd /home/ubuntu/MLOPS
+# Stop any existing application process
+pkill gunicorn
 
-# Activate the virtual environment
+# Set the project directory
+PROJECT_DIR="/home/ubuntu/MLOPS"
+cd $PROJECT_DIR
+
+# 1. Create a new Python virtual environment (if it doesn't exist)
+if [ ! -d "venv" ]; then
+  python3 -m venv venv
+fi
+
+# 2. Activate the virtual environment
 source venv/bin/activate
 
-# Install DVC S3 support
-pip install "dvc[s3]"
+# 3. Install the required packages
+pip install -r requirements.txt
 
-# Pull the latest data and models from S3 remote
-# AWS credentials will be passed from GitHub secrets
+# 4. Pull the latest data from DVC
 dvc pull
 
-# Stop the old version of the app (if it's running)
-# The pkill command will fail if the process isn't found, so we add || true
-pkill gunicorn || true
+# 5. Start the Gunicorn server in the background
+nohup gunicorn --workers 3 --bind 0.0.0.0:8000 app:app &
 
-# Start the new version of the app in the background
-# We pipe the output to a log file
-nohup gunicorn --bind 0.0.0.0:8000 app:app > app.log 2>&1 &
-
-echo "Deployment finished successfully!"
-
+echo "🚀 Deployment successful!"
