@@ -1,6 +1,3 @@
-# This is the final, verified CI/CD pipeline.
-# The YAML syntax for the ssh-action has been corrected.
-
 name: 🏥 MLOps Pipeline for AWS EC2
 
 on:
@@ -13,34 +10,92 @@ env:
   PROJECT_DIR: /home/ubuntu/MLOPS
 
 jobs:
-  dvc-and-quality-check:
-    name: 🔄 DVC and Quality Checks
+  # JOB 1: DVC Pipeline - Pulls data and reproduces the model
+  dvc-pipeline:
+    name: 🔄 DVC ML Pipeline (Preprocess & Train)
     runs-on: ubuntu-latest
+    outputs:
+      model-changed: ${{ steps.check-changes.outputs.model-changed }}
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 🐍 Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: 📦 Install Dependencies
+        run: pip install -r requirements.txt
+      - name: 🔐 Configure DVC S3 Remote
+        run: dvc remote modify s3remote endpointurl https://play.min.io && dvc remote default s3remote
+      - name: 📊 Pull Latest Data from Remote
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: dvc pull
+      - name: 🚀 Execute DVC Pipeline (Reproduce Model)
+        run: dvc repro
+      - name: 🔍 Check for Model Changes
+        id: check-changes
+        run: |
+          if git diff --quiet HEAD^ HEAD -- models/ || [ ! -d models ]; then
+            echo "model-changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "model-changed=true" >> $GITHUB_OUTPUT
+          fi
+      - name: 📤 Upload Data to Remote Storage
+        if: github.ref == 'refs/heads/main'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: dvc push
+      - name: 📦 Save Model Artifacts for Next Job
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-model-artifacts
+          path: |
+            models/
+            data/preprocessed/
+            metrics.json
+          retention-days: 7
+
+  # JOB 2: Quality Assurance - Runs all your tests
+  quality-assurance:
+    name: 🧪 Quality Assurance (Tox)
+    runs-on: ubuntu-latest
+    needs: dvc-pipeline # This job runs only after the dvc-pipeline job succeeds
+    strategy:
+      fail-fast: false
+      matrix:
+        tox-env: [py39, lint, security]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - run: pip install -r requirements.txt
-      - run: dvc remote modify s3remote endpointurl https://play.min.io && dvc remote default s3remote
-      - env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: dvc pull
-      - run: dvc repro
-      - run: tox -e py39,lint,security
+      - name: 📦 Download Model Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-model-artifacts
+      - name: 📦 Install Dependencies
+        run: pip install -r requirements.txt
+      - name: 🧪 Run Tox Environment
+        run: tox -e ${{ matrix.tox-env }}
 
+  # JOB 3: Deployment - Pushes your code to the server
   deploy-to-ec2:
     name: "🚀 Deploy to AWS EC2"
     runs-on: ubuntu-latest
-    needs: dvc-and-quality-check
-    if: github.ref == 'refs/heads/main'
+    needs: [dvc-pipeline, quality-assurance] # Runs only after both previous jobs succeed
+    if: github.ref == 'refs/heads/main' && needs.dvc-pipeline.outputs.model-changed == 'true'
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
       - name: 📂 Sync Project Files to EC2 Server
-        uses: appleboy/scp-action@v1.0.1
+        # CORRECTED: Using a valid, modern version of the action
+        uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.AWS_EC2_HOST }}
           username: ${{ secrets.AWS_EC2_USERNAME }}
@@ -50,29 +105,19 @@ jobs:
           target: ${{ env.PROJECT_DIR }}
 
       - name: 🚀 Execute Deployment Script on EC2
-        uses: appleboy/ssh-action@v1.0.3
+        # CORRECTED: Using a valid, modern version of the action
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.AWS_EC2_HOST }}
           username: ${{ secrets.AWS_EC2_USERNAME }}
           key: ${{ secrets.AWS_EC2_KEY }}
           port: 22
-          # CORRECTED: The env variables are now exported inside the script,
-          # which fixes the YAML syntax error.
           script: |
             export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
             export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
             
             cd ${{ env.PROJECT_DIR }}
             
-            # Run initial setup only if the venv doesn't exist
-            if [ ! -d "venv" ]; then
-              echo "Setting up virtual environment for the first time..."
-              python3 -m venv venv
-              source venv/bin/activate
-              pip install -r requirements.txt
-            fi
-            
-            # Make the deployment script executable and then run it
+            # Make the deployment script executable and run it
             chmod +x deploy.sh
             ./deploy.sh
-
