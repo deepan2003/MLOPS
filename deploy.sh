@@ -12,15 +12,19 @@ cd $PROJECT_DIR
 echo "Creating Python virtual environment..."
 python3 -m venv venv
 
-# 2. Install packages using the venv's pip (This is the fix)
+# 2. Upgrade pip, setuptools, and wheel first as a best practice
+echo "Upgrading pip, setuptools, and wheel..."
+venv/bin/pip install --upgrade pip setuptools wheel
+
+# 3. Install packages from requirements.txt
 echo "Installing packages from requirements.txt..."
 venv/bin/pip install -r requirements.txt
 
-# 3. Pull data using the venv's dvc
+# 4. Pull data using the venv's dvc
 echo "Pulling data with DVC..."
 venv/bin/dvc pull
 
-# 4. Start the server using the venv's gunicorn
+# 5. Start the Gunicorn server in the background
 echo "Starting Gunicorn server..."
 nohup venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 app:app &
 
