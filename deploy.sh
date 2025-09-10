@@ -26,7 +26,6 @@ venv/bin/dvc pull
 
 # 5. Start the Gunicorn server in the background
 echo "Starting Gunicorn server..."
-# The module path src.api.app tells Gunicorn to look for the app variable inside /src/api/app.py
-nohup venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 src.api.app:app &
+nohup venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 src.api.app:app > /dev/null 2>&1 &
 
 echo "🚀 Deployment successful!"
