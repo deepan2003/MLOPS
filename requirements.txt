@@ -8,7 +8,7 @@ dvc[s3]
 # Core ML libraries
 pandas
 numpy
-scikit-learn
+scikit-learn==1.3.0 
 joblib==1.3.2
 
 # Web framework
