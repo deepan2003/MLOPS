@@ -83,7 +83,3 @@ Bash
 python src/api/app.py
 The application will be available at http://127.0.0.1:5000.
 
-
-├── dvc.yaml                # DVC pipeline definition file
-├── params.yaml             # Parameters for the DVC pipeline
-└── requirements.txt        # Python dependencies
