@@ -1,7 +1,3 @@
-# Build tools
-setuptools==69.5.1
-wheel==0.43.0
-
 # DVC with S3 support (Unified into one line)
 dvc[s3]
 
