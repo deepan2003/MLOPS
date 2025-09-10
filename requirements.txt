@@ -1,11 +1,10 @@
 # DVC with S3 support
 dvc[s3]
 
-# Core ML libraries (no version pins)
+# Core ML libraries (NO version pins)
 pandas
-numpy==1.24.4
-scikit-learn==1.3.0
-
+numpy
+scikit-learn
 joblib
 
 # Web framework
